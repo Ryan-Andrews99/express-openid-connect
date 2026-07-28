@@ -10,6 +10,7 @@ const {
   goto,
   login,
 } = require('./fixture/helpers');
+const { decodeProtectedHeader } = require('jose');
 
 describe('private key jwt', async () => {
   let authServer;
@@ -49,6 +50,11 @@ describe('private key jwt', async () => {
       ctx.oidc.body.client_assertion,
       'Client should have authenticated with a client assertion payload',
     );
+
+    const header = decodeProtectedHeader(ctx.oidc.body.client_assertion)
+    //Matches fixtures/jwk.js
+    assert.equal(header.kid, 'key-1', 'Header must have kid attached');
+
     assert.equal(
       ctx.oidc.body.client_assertion_type,
       'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',

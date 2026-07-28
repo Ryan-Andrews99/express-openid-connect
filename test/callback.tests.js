@@ -1041,6 +1041,50 @@ describe('callback response_mode: form_post', () => {
     assert.equal(header.alg, 'RS256');
   });
 
+  it('should use private key jwt on token endpoint and provide a key ID in the header when provided in JWK', async () => {
+    const idToken = makeIdToken({
+      c_hash: '77QmUPtjPfzWtF2AnpK9RQ',
+    });
+
+    const key = await jose.importPKCS8(privateKey, 'RS256', {
+      extractable: true,
+    });
+    const privateJwk = await jose.exportJWK(key);
+    privateJwk.kid = '1';
+
+    const result = await setup({
+      authOpts: {
+        authorizationParams: {
+          response_type: 'code',
+        },
+        clientAssertionSigningKey: privateJwk,
+        clientAssertionSigningAlg: 'RS256',
+      },
+      cookies: generateCookies({
+        state: expectedDefaultState,
+        nonce: '__test_nonce__',
+      }),
+      tokenIdToken: idToken, // For code flow, id_token comes from token endpoint
+      body: {
+        state: expectedDefaultState,
+        code: 'jHkWEdUXMU1BwAsC4vtUsZwnNvTIxEl0z9K3vx5KF0Y',
+      },
+    });
+
+    const { tokenReqBodyJson } = result;
+
+    assert(tokenReqBodyJson.client_assertion);
+    assert.equal(
+      tokenReqBodyJson.client_assertion_type,
+      'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+    );
+    const header = jose.decodeProtectedHeader(
+      tokenReqBodyJson.client_assertion,
+    );
+    assert.equal(header.alg, 'RS256');
+    assert.equal(header.kid, '1');
+  });
+
   it('should use client secret jwt on token endpoint', async () => {
     const idToken = makeIdToken({
       c_hash: '77QmUPtjPfzWtF2AnpK9RQ',
